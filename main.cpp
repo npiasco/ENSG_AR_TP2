@@ -23,11 +23,9 @@
 #include "opencv2/opencv.hpp"
 #include<System.h>
 
-
-float norm(const glm::vec3& v){
-    return sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2]);
-}
-
+/**
+ * Convert cvmat cv::Mat type in glmmat glm::mat4 type
+ * */
 void fromCV2GLM(const cv::Mat& cvmat, glm::mat4& glmmat) {
     if (cvmat.cols != 4 || cvmat.rows != 4 || cvmat.type() != CV_32FC1) {
         cout << "Matrix conversion error!" << endl;
@@ -37,6 +35,9 @@ void fromCV2GLM(const cv::Mat& cvmat, glm::mat4& glmmat) {
     glmmat = glm::transpose(glmmat);
 }
 
+/**
+ * Convert cvmat cv::Mat type in glmmat glm::vec3 type
+ * */
 void fromCV2GLM(const cv::Mat& cvmat, glm::vec3& glmmat) {
     if (cvmat.cols != 1 || cvmat.rows != 3 || cvmat.type() != CV_32FC1) {
         cout << "Matrix conversion error!" << endl;
@@ -45,20 +46,17 @@ void fromCV2GLM(const cv::Mat& cvmat, glm::vec3& glmmat) {
     memcpy(glm::value_ptr(glmmat), cvmat.data, 3 * sizeof(float));
 }
 
-void fromGLM2CV(const glm::mat4& glmmat, cv::Mat* cvmat) {
-    if (cvmat->cols != 4 || cvmat->rows != 4) {
-        (*cvmat) = cv::Mat(4, 4, CV_32F);
-    }
-    memcpy(cvmat->data, glm::value_ptr(glmmat), 16 * sizeof(float));
-}
-
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mode);
 
 int main(int argc, char **argv)
 {
-
+    // Initialisation du systeme de tracking, mettre false pour desactiver le gui
     ORB_SLAM2::System SLAM(argv[1],argv[2],ORB_SLAM2::System::MONOCULAR,true);
+    cv::VideoCapture cap(0);
+    cap.set(CV_CAP_PROP_FRAME_HEIGHT,480);
+    cap.set(CV_CAP_PROP_FRAME_WIDTH,640);
 
+    /************ Initialisation Fenetre, Shaders, texture ***********/
     GLuint screenWidth = 800, screenHeight = 600;
 
     glfwInit();
@@ -72,7 +70,6 @@ int main(int argc, char **argv)
     glfwMakeContextCurrent(window);
     glfwSetKeyCallback(window, key_callback);
 
-   
     glewExperimental = GL_TRUE;
     glewInit();
     
@@ -86,18 +83,7 @@ int main(int argc, char **argv)
     
     Shader shader("opengl_code/shaders/default.vertexshader", "opengl_code/shaders/default.fragmentshader");
     Shader lightshader("opengl_code/shaders/light.vertexshader", "opengl_code/shaders/light.fragmentshader");
-    
-
-
-    cv::VideoCapture cap(0);
-    cap.set(CV_CAP_PROP_FRAME_HEIGHT,480);
-    cap.set(CV_CAP_PROP_FRAME_WIDTH,640);
-    
-    cv::Mat image;
-    cap >> image;
-
-    cv::flip(image, image, 0);
-    
+            
     GLuint texture; // Declaration de l'identifiant
 
 	glGenTextures(1, &texture); // Generation de la texture
@@ -110,12 +96,6 @@ int main(int argc, char **argv)
 	// Methode de filtrage
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	// Chargement du fichier image en utilisant la lib SOIL
-	// Association des donnees image a la texture
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image.cols, image.rows,
-					           0, GL_BGR, GL_UNSIGNED_BYTE, image.ptr());
-	// Generation de la mipmap
-	glGenerateMipmap(GL_TEXTURE_2D);
 
     // On unbind la texture
 	glBindTexture(GL_TEXTURE_2D, 0);
@@ -182,12 +162,13 @@ int main(int argc, char **argv)
     lModels.push_back(Model("opengl_code/model/House/house.obj"));
     lModels.push_back(Model("opengl_code/model/Lamp/Lamp.obj"));
     lModels.push_back(Model("opengl_code/model/Trees/Tree1/Tree1.3ds"));
+    lModels.push_back(Model("opengl_code/model/sphere/sphere.stl"));
 
     // Game loop
     //Camera camera(window,glm::vec3(0.0f,0.0f,focal));
     int timeStamps = 0;
 
-    cv::Mat camera_pose;
+    cv::Mat camera_pose, image;
     while(!glfwWindowShouldClose(window))
     {
         glClear(GL_DEPTH_BUFFER_BIT);
@@ -256,11 +237,12 @@ int main(int argc, char **argv)
 
 //            for (auto it=pts.begin();it!=pts.end();it++)
             //std::cout << norm(offset) << std::endl;
-            for (int i=0;i<pts.size() && i<50;++i)
+            for (int i=0;i<pts.size() && i<300;++i)
             {   
                 auto pt = pts[i]->GetWorldPos();
 
-                glm::vec3 obj_pos(pt.at<float>(0), pt.at<float>(1), pt.at<float>(2));
+                glm::vec3 obj_pos;
+                fromCV2GLM(pt,obj_pos);
                 
                 //model =  rotx * camera_pose_gl;
 
@@ -271,14 +253,13 @@ int main(int argc, char **argv)
                 
                 model = glm::rotate(model, (GLfloat) M_PI*norm(obj_pos)*10, glm::vec3((rand()%10-5)/5.0, (rand()%10-5)/5.0, (rand()%10-5)/5.0));
                 
-                model=glm::scale(model, glm::vec3(0.05, 0.05, 0.05));
+                model=glm::scale(model, glm::vec3(0.02, 0.02, 0.02));
 
                 lightshader.Use();
                 //shader.Use();
                 glUniformMatrix4fv(glGetUniformLocation(lightshader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model));
                 //glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model));
                 lModels[0].Draw(lightshader);
-                lModels[0].Draw(shader);
             }
         }
         
