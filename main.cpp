@@ -102,7 +102,7 @@ int main(int argc, char **argv)
     /* A MODIFIER */
     GLfloat fov=43.13f;
 	
-    glm::mat4 projection = glm::perspective((GLfloat) (fov*M_PI/180.0), 4.0f/3.0f, 0.1f, 300.0f);
+    glm::mat4 projection = glm::perspective((GLfloat) (fov*M_PI/180.0), 4.0f/3.0f, 0.1f, 1000.0f);
 
     shader.Use();
     glUniformMatrix4fv(glGetUniformLocation(shader.Program, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
@@ -170,7 +170,6 @@ int main(int argc, char **argv)
         glClear(GL_DEPTH_BUFFER_BIT); // Remise à zero du Z-buffer
 
         cap >> image;
-        cv::flip(image, image, 0);
 
         glfwPollEvents();
         glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
