@@ -4,7 +4,6 @@
 #include <ctime>
 #include <stdlib.h>     /* srand, rand */
 
-
 // GLEW
 #include <GL/glew.h>
 
@@ -99,15 +98,18 @@ int main(int argc, char **argv)
 
     // On unbind la texture
 	glBindTexture(GL_TEXTURE_2D, 0);
+
+    /* A MODIFIER */
+    GLfloat fov=43.13f;
 	
-    glm::mat4 projection = glm::perspective((GLfloat) (47.00f*M_PI/180.0), ((GLfloat) screenWidth)/((GLfloat)screenHeight), 0.1f, 300.0f);
+    glm::mat4 projection = glm::perspective((GLfloat) (fov*M_PI/180.0), 4.0f/3.0f, 0.1f, 300.0f);
+
     shader.Use();
     glUniformMatrix4fv(glGetUniformLocation(shader.Program, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
     lightshader.Use();
     glUniformMatrix4fv(glGetUniformLocation(lightshader.Program, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
 
-    GLfloat focal = projection[0][0]; // fov=43.13f
-    std::cout << focal << std::endl;
+    GLfloat focal = projection[0][0]; 
 
 	GLfloat vertices[] = {
        /*      Positions    |      Normales     |     UV     */
@@ -152,59 +154,37 @@ int main(int argc, char **argv)
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
     
-    shader.Use();
 
-    std::vector<Model> lModels;
-    lModels.push_back(Model("opengl_code/model/suzanne/suzanne.obj"));
-    //lModels.push_back(Model("opengl_code/model/QGIS/stl/0_ISERE_50_asc_0.stl"));
-    //lModels.push_back(Model("opengl_code/model/QGIS/0_ISERE_50_asc_0.obj"));
-
-    lModels.push_back(Model("opengl_code/model/House/house.obj"));
-    lModels.push_back(Model("opengl_code/model/Lamp/Lamp.obj"));
-    lModels.push_back(Model("opengl_code/model/Trees/Tree1/Tree1.3ds"));
-    lModels.push_back(Model("opengl_code/model/sphere/sphere.stl"));
+    // Chargement des modèles
+    std::vector<Model> Models;
+    Models.push_back(Model("opengl_code/model/House/house.obj")); // Num 0 
+    Models.push_back(Model("opengl_code/model/Lamp/Lamp.obj")); // Num 1 
+    Models.push_back(Model("opengl_code/model/Trees/Tree1/Tree1.3ds")); // Num 2 
+    Models.push_back(Model("opengl_code/model/sphere/sphere.stl")); // Num 3 
+    Models.push_back(Model("opengl_code/model/suzanne/suzanne.obj")); // Num 4 
 
     // Game loop
-    //Camera camera(window,glm::vec3(0.0f,0.0f,focal));
-    int timeStamps = 0;
-
-    cv::Mat camera_pose, image;
+    cv::Mat image;
     while(!glfwWindowShouldClose(window))
     {
-        glClear(GL_DEPTH_BUFFER_BIT);
+        glClear(GL_DEPTH_BUFFER_BIT); // Remise à zero du Z-buffer
 
         cap >> image;
-        camera_pose = SLAM.TrackMonocular(image, timeStamps++);
+        cv::flip(image, image, 0);
 
         glfwPollEvents();
-        //camera.Do_Movement();
         glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT /*| GL_DEPTH_BUFFER_BIT*/);
+        glClear(GL_COLOR_BUFFER_BIT);
 
-        glm::mat4 camera_pose_gl(1.0f),rotx(1.0f),view;            
-            
-        rotx=glm::rotate(glm::mat4(1.0f),(GLfloat) M_PI, glm::vec3(1,0,0));
+        /* A MODIFIER */
+        glm::mat4 view(1.0f), model(1.0f);
 
-        if (!camera_pose.empty()){
-            fromCV2GLM(camera_pose,camera_pose_gl);
-            camera_pose_gl = rotx*camera_pose_gl;
-            //camera_pose_gl = glm::inverse(camera_pose_gl);
-            /*
-            camera_pose_gl[3][0] *= -1;
-            camera_pose_gl[3][1] *= -1;
-            camera_pose_gl[3][2] *= -1;*/
-        }
 
-        view = camera_pose_gl;
-
-        glm::mat4 model(glm::inverse(view));
-        model = glm::translate(model, glm::vec3(0.0f, 0.0f, -focal));
-
+        lightshader.Use();
+        glUniformMatrix4fv(glGetUniformLocation(lightshader.Program, "view"), 1, GL_FALSE, glm::value_ptr(view));
         shader.Use();
         glUniformMatrix4fv(glGetUniformLocation(shader.Program, "view"), 1, GL_FALSE, glm::value_ptr(view));
         glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model));
-        
-        cv::flip(image, image, 0);
         
 		//  Activiation  de la  texture 0
 		glActiveTexture(GL_TEXTURE0 );//  Binding  de  notre  texture
@@ -220,48 +200,12 @@ int main(int argc, char **argv)
         glDrawElements(GL_TRIANGLES, 3*2, GL_UNSIGNED_SHORT, 0);
         glBindVertexArray(0);
 
-        glClear(GL_DEPTH_BUFFER_BIT);
+        /**************             Affichage de l'envrionnement augmenté               *****************/
 
-        if (!camera_pose.empty()){
-            auto pts = SLAM.GetMapPoints();
-            lightshader.Use();
-            glUniformMatrix4fv(glGetUniformLocation(lightshader.Program, "view"), 1, GL_FALSE, glm::value_ptr(view));
-            int target = 0;
-            
-            glm::mat4 inv_view = glm::inverse(view);
-            
-            glm::vec3 pos_cam(inv_view[3][0],inv_view[3][1],inv_view[3][2]);
-            
-            glm::mat4 plan = glm::translate(inv_view, glm::vec3(0.0f,0.0f,focal));
-            glm::vec3 offset(pos_cam[0]-plan[3][0],pos_cam[1]-plan[3][1],pos_cam[2]-plan[3][2]);
+        /* A MODIFIER */
 
-//            for (auto it=pts.begin();it!=pts.end();it++)
-            //std::cout << norm(offset) << std::endl;
-            for (int i=0;i<pts.size() && i<300;++i)
-            {   
-                auto pt = pts[i]->GetWorldPos();
 
-                glm::vec3 obj_pos;
-                fromCV2GLM(pt,obj_pos);
-                
-                //model =  rotx * camera_pose_gl;
 
-                model=glm::mat4(1.0f);
-                
-                srand ( (int) norm(obj_pos)*10000);
-                model = glm::translate(model, obj_pos);
-                
-                model = glm::rotate(model, (GLfloat) M_PI*norm(obj_pos)*10, glm::vec3((rand()%10-5)/5.0, (rand()%10-5)/5.0, (rand()%10-5)/5.0));
-                
-                model=glm::scale(model, glm::vec3(0.02, 0.02, 0.02));
-
-                lightshader.Use();
-                //shader.Use();
-                glUniformMatrix4fv(glGetUniformLocation(lightshader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model));
-                //glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model));
-                lModels[0].Draw(lightshader);
-            }
-        }
         
 
         glfwSwapBuffers(window);
@@ -271,9 +215,10 @@ int main(int argc, char **argv)
     glDeleteBuffers(1, &VBO);
     glDeleteBuffers(1, &EBO);
     
-    glfwTerminate();
-
+    // Stop all threads
     SLAM.Shutdown();
+    
+    glfwTerminate();
     return 0;
 }
 
