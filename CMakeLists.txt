@@ -6,11 +6,13 @@ find_package(OpenCV REQUIRED)
 find_package(OpenGL REQUIRED)
 find_package(GLEW REQUIRED)
 find_package(Eigen3 REQUIRED)
+find_package(Pangolin REQUIRED)
 
-set(ORBSLAM_PATH ~/Cours/D2/AR/ORB_SLAM2)
+set(ORBSLAM_PATH ~/RA/ORB_SLAM2)
 
 include_directories(
 	${PROJECT_SOURCE_DIR}
+	${Pangolin_INCLUDE_DIRS}
 	${EIGEN3_INCLUDE_DIR}
 	${GLEW_INCLUDE_DIR}
 	${OpenCV_INCLUDE_DIR}
@@ -27,10 +29,10 @@ set(ALL_LIBS
 	${GLEW_LIBRARY}
 	${EIGEN3_LIBS}
 	${ORBSLAM_PATH}/lib/libORB_SLAM2.so
-	${ORBSLAM_PATH}/Thirdparty/Pangolin/lib/libpangolin.so
 	glfw
 	SOIL
 	assimp
+	${Pangolin_LIBRARIES}
 )
 
 add_definitions(
