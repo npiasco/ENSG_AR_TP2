@@ -174,8 +174,6 @@ int main(int argc, char **argv)
     cv::Mat image;
     while(!glfwWindowShouldClose(window))
     {
-        glClear(GL_DEPTH_BUFFER_BIT); // Remise à zero du Z-buffer
-
         cap >> image;
 
         glfwPollEvents();
@@ -186,8 +184,6 @@ int main(int argc, char **argv)
         glm::mat4 view(1.0f), model(1.0f);
 
 
-        lightshader.Use();
-        glUniformMatrix4fv(glGetUniformLocation(lightshader.Program, "view"), 1, GL_FALSE, glm::value_ptr(view));
         shader.Use();
         glUniformMatrix4fv(glGetUniformLocation(shader.Program, "view"), 1, GL_FALSE, glm::value_ptr(view));
         glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model));
@@ -208,6 +204,9 @@ int main(int argc, char **argv)
 
         /**************             Affichage de l'envrionnement augmenté               *****************/
 
+        lightshader.Use();
+        glUniformMatrix4fv(glGetUniformLocation(lightshader.Program, "view"), 1, GL_FALSE, glm::value_ptr(view));
+        glClear(GL_DEPTH_BUFFER_BIT); // Remise à zero du Z-buffer
         /* A MODIFIER */
 
 
