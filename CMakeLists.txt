@@ -8,7 +8,7 @@ find_package(GLEW REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(Pangolin REQUIRED)
 
-set(ORBSLAM_PATH ~/RA/ORB_SLAM2)
+set(ORBSLAM_PATH ~/AR/ORB_SLAM2)
 
 include_directories(
 	${PROJECT_SOURCE_DIR}
@@ -18,7 +18,9 @@ include_directories(
 	${OpenCV_INCLUDE_DIR}
 	${ORBSLAM_PATH}/include
 	${ORBSLAM_PATH}
+	/usr/local/include/apriltag/
 	opengl_code/
+	opencv_code/
 )
 
 MESSAGE(${OPENGL_LIBRARY})
@@ -33,6 +35,7 @@ set(ALL_LIBS
 	SOIL
 	assimp
 	${Pangolin_LIBRARIES}
+	apriltag
 )
 
 add_definitions(
@@ -46,6 +49,7 @@ add_definitions(
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
 add_executable(main main.cpp
 		opengl_code/Shader.cpp 
+		opencv_code/AprilTagReader.cpp
 		opengl_code/shaders/default.vertexshader 
 		opengl_code/shaders/default.fragmentshader)
 target_link_libraries( main ${ALL_LIBS} )
